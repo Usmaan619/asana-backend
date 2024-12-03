@@ -575,69 +575,69 @@ router.get("/getAllUser", authMiddleware, async (req, res, next) => {
 });
 
 // Get all products
-router.get("/products", async (req, res, next) => {
-  try {
-    const products = await Product.find();
-    res.json(products);
-  } catch (error) {
-    next(error);
-  }
-});
+// router.get("/products", async (req, res, next) => {
+//   try {
+//     const products = await Product.find();
+//     res.json(products);
+//   } catch (error) {
+//     next(error);
+//   }
+// });
 
 // Add item to cart
-router.post("/cart/add", async (req, res, next) => {
-  try {
-    const { productId, quantity, email } = req.body;
-    const user = await User.findOne({ email });
+// router.post("/cart/add", async (req, res, next) => {
+//   try {
+//     const { productId, quantity, email } = req.body;
+//     const user = await User.findOne({ email });
 
-    const product = await Product.findById(productId);
+//     const product = await Product.findById(productId);
 
-    if (!product) {
-      return res.status(404).json({ error: "Product not found" });
-    }
+//     if (!product) {
+//       return res.status(404).json({ error: "Product not found" });
+//     }
 
-    let cart = await Cart.findOne(); // Assuming there is only one cart for simplicity
+//     let cart = await Cart.findOne(); // Assuming there is only one cart for simplicity
 
-    if (!cart) {
-      cart = new Cart({
-        items: [],
-      });
-    }
+//     if (!cart) {
+//       cart = new Cart({
+//         items: [],
+//       });
+//     }
 
-    const cartItemIndex = cart.items.findIndex((item) =>
-      item.product.equals(productId)
-    );
+//     const cartItemIndex = cart.items.findIndex((item) =>
+//       item.product.equals(productId)
+//     );
 
-    if (cartItemIndex !== -1) {
-      // If the product is already in the cart, update the quantity
-      cart.items[cartItemIndex].quantity += quantity;
-    } else {
-      // If the product is not in the cart, add a new item
-      cart.items.push({ product: productId, quantity });
-    }
+//     if (cartItemIndex !== -1) {
+//       // If the product is already in the cart, update the quantity
+//       cart.items[cartItemIndex].quantity += quantity;
+//     } else {
+//       // If the product is not in the cart, add a new item
+//       cart.items.push({ product: productId, quantity });
+//     }
 
-    if (cart?._id) user.cartId = cart?._id;
+//     if (cart?._id) user.cartId = cart?._id;
 
-    await cart.save();
-    res.json(cart);
-  } catch (error) {
-    next(error);
-  }
-});
+//     await cart.save();
+//     res.json(cart);
+//   } catch (error) {
+//     next(error);
+//   }
+// });
 
 // Get cart items
-router.get("/cart", async (req, res, next) => {
-  try {
-    const cart = await Cart.findOne().populate("items.product", "name price");
+// router.get("/cart", async (req, res, next) => {
+//   try {
+//     const cart = await Cart.findOne().populate("items.product", "name price");
 
-    if (!cart) {
-      return res.json({ items: [] });
-    }
+//     if (!cart) {
+//       return res.json({ items: [] });
+//     }
 
-    res.json(cart.items);
-  } catch (error) {
-    next(error);
-  }
-});
+//     res.json(cart.items);
+//   } catch (error) {
+//     next(error);
+//   }
+// });
 
 export default router;
