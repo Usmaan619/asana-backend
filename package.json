@@ -7,6 +7,7 @@
     "start": "node bin/www.js",
     "dev": "nodemon bin/www.js",
     "debug": "nodemon --inspect bin/www.js",
+    "i": "npm i --legacy-peer-deps",
     "prepare": "husky install",
     "clean": "npm cache clean --force",
     "lint": "eslint .",
