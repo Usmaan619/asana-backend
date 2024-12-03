@@ -7,6 +7,7 @@ import "dotenv/config";
 import app from "../app.js";
 import debugLib from "debug";
 import http from "http";
+import { initSocket } from "../src/web-sockets/notification.socket.js";
 
 const debug = debugLib("express-l17:server");
 
@@ -21,6 +22,11 @@ const listen = (port) => {
    * Create HTTP server.
    */
   const server = http.createServer(app);
+
+  /**
+   * Initialize Socket.io
+   * */
+  initSocket(server);
 
   /**
    * Listen on provided port, on all network interfaces.

@@ -3,12 +3,25 @@ import { Task } from "../models/task.js";
 import { User } from "../models/user.js";
 import pkg from "rest-api-errors";
 import { authMiddleware } from "../middleware/checkAuth.js";
-const { APIError } = pkg;
 import { TaskDaily } from "../models/tastDailyUpdate.js";
 import moment from "moment/moment.js";
 import mongoose from "mongoose";
 import multer from "multer";
+import { Notification } from "../models/notification.js";
+const { APIError } = pkg;
 const router = express();
+
+const createNotification = async (userId, message) => {
+  try {
+    const notification = new Notification({
+      user: userId,
+      message,
+    });
+    await notification.save();
+  } catch (error) {
+    throw error;
+  }
+};
 
 // Get all tasks
 router.get("/getAllTasks", async (req, res, next) => {
@@ -114,6 +127,11 @@ router.post("/create", fileParser, authMiddleware, async (req, res, next) => {
       collaborators,
       createdBy: req?.user?._id,
     });
+    // nofication
+    await createNotification(
+      req?.user?._id,
+      `You have been assigned to task: ${task.title}`
+    );
 
     // Save the task in MongoDB
     await task.save();
