@@ -303,11 +303,21 @@ router.get("/getAllTasksCount", async (req, res, next) => {
 
 router.post("/getTaskByStatusAndId", async (req, res, next) => {
   try {
-    const { status, assignedTo } = req?.body;
+    const { status, assignedTo, createdAtDate } = req?.body;
 
     const query = {};
     if (status) query.status = status;
     if (assignedTo) query.assignedTo = assignedTo;
+    if (createdAtDate) {
+      const startOfDay = new Date(createdAtDate);
+      const endOfDay = new Date(createdAtDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      query.createdAt = {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      };
+    }
 
     const tasks = await Task.find(query)
       .populate("assignedTo", "_id name")
@@ -351,5 +361,68 @@ router.get("/tickets/filter", authMiddleware, async (req, res, next) => {
     next(error);
   }
 });
+
+router.post(
+  "/UpdateTaskDailyUpdate",
+  authMiddleware,
+  async (req, res, next) => {
+    try {
+      const { taskId, about, date, description, tags, ticketNo } = req.body;
+
+      const existingTicket = await Task.findOne({ ticketNo });
+      if (!existingTicket)
+        throw new APIError(404, "404", "Ticket number not found");
+
+      // Find and update the TaskDaily document
+      const updatedTask = await TaskDaily.findOneAndUpdate(
+        { _id: taskId },
+        {
+          ticketNo,
+          about,
+          date: date || new Date(),
+          description,
+          // assignedTo: existingTicket?._id,
+          tags,
+          uId: req.user._id,
+        },
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedTask) {
+        throw new APIError(
+          404,
+          "404",
+          "TaskDaily record not found for the provided ticket number"
+        );
+      }
+
+      res.json({
+        success: true,
+        message: "TaskDaily updated successfully",
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.delete(
+  "/DeleteTaskDailyUpdate/:id",
+  authMiddleware,
+  async (req, res, next) => {
+    try {
+      await TaskDaily.findByIdAndDelete({
+        _id: req?.params?.id,
+      });
+
+      res.json({
+        success: true,
+        message: "TaskDaily Deleted successfully",
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 export default router;

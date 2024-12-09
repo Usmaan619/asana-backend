@@ -256,7 +256,7 @@ router.post("/send-otp", async (req, res, next) => {
     let emailOptions = {
       subject: "Forgot Password",
       to: email,
-      from: process.env.BHAIPAY_EMAIL,
+      from: process.env.SMTP_SIW_USER,
 
       html: forgetPasswordTemplate(otp, req.hostname),
     };
@@ -307,18 +307,18 @@ router.post("/update-password", async (req, res, next) => {
 
 router.post("/reset-password", async (req, res, next) => {
   try {
-    const { newPassword, email } = req.body;
+    const { password, otp } = req.body;
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ otp });
     if (!user) {
       throw new APIError("400", 400, "User doesn't exist.");
     }
 
-    if (!newPassword) {
+    if (!password) {
       throw new APIError("422", 422, "Enter new password.");
     }
 
-    user.password = newPassword;
+    user.password = password;
 
     await user.save();
 

@@ -114,19 +114,38 @@ export const verifySentOtp = async (to, otp) => {
   return response;
 };
 
+// export const createEmailTransporter = async () => {
+//   try {
+//     return await createTransport({
+//       host: "mail.smtp2go.com",
+//       port: 2525, // 8025, 587 and 25 can also be used.
+//       auth: {
+//         user: process.env.SMTP_BHAIPAY_USER,
+//         pass: process.env.SMTP_BHAIPAY_PASS,
+//       },
+//       tls: {
+//         // do not fail on invalid certs
+//         rejectUnauthorized: false,
+//       },
+//     });
+//   } catch (error) {}
+// };
+
 export const createEmailTransporter = async () => {
   try {
     return await createTransport({
-      host: "mail.smtp2go.com",
-      port: 2525, // 8025, 587 and 25 can also be used.
+      host: "smtp.gmail.com",
+      port: 587,
       auth: {
-        user: process.env.SMTP_BHAIPAY_USER,
-        pass: process.env.SMTP_BHAIPAY_PASS,
+        user: process.env.SMTP_SIW_USER,
+        pass: process.env.SMTP_SIW_PASS,
       },
       tls: {
         // do not fail on invalid certs
         rejectUnauthorized: false,
       },
     });
-  } catch (error) {}
+  } catch (error) {
+    console.log("error:createEmailTransporter ", error);
+  }
 };

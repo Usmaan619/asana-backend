@@ -457,7 +457,7 @@ export const forgetPasswordTemplate = (otp, hostname) => {
                       <td class="content-cell">
                         <div class="f-fallback">
                           <h1>Hi Dear,</h1>
-                          <p>You recently requested to reset your password for your BhaiPay account. Use the button below to reset it. <strong>This password reset is only valid for the next 24 hours.</strong></p>
+                          <p>We have noticed a request form your side to rest password for your Aifuture account.The <strong>OTP</strong> to rest your password is <strong>${otp}</strong> which is <strong>valid for next 24 hours.</strong></p>
                           <!-- Action -->
                           <table class="body-action" align="center" width="100%" cellpadding="0" cellspacing="0" role="presentation">
                             <tr>
@@ -474,9 +474,10 @@ export const forgetPasswordTemplate = (otp, hostname) => {
                               </td>
                             </tr>
                           </table>
-                          <p>For security, this request was received from a ${hostname} device . If you did not request a password reset, please ignore this email or <a href="{{support_url}}">contact support</a> if you have questions.</p>
+                          <p>For security, this request was received from ${hostname} from Aifuture. If it was not you, ignore the mail or contact <a href="{{support}}">support</a> if you want to enquire further.</p>
                           <p>Thanks,
-                            <br>The BhaiPay team</p>
+                            <br>The AiFuture
+                             team</p>
                           <!-- Sub copy -->
                           <table class="body-sub" role="presentation">
                             <tr>
@@ -498,7 +499,7 @@ export const forgetPasswordTemplate = (otp, hostname) => {
                     <tr>
                       <td class="content-cell" align="center">
                         <p class="f-fallback sub align-center">
-                          BhaiFainance, LLC
+                          Aifuture, LLC
                           
                         </p>
                       </td>
