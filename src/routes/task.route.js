@@ -8,23 +8,23 @@ import moment from "moment/moment.js";
 import mongoose from "mongoose";
 import multer from "multer";
 import { Notification } from "../models/notification.js";
+
 const { APIError } = pkg;
 const router = express();
 
 const createNotification = async (userId, message) => {
   try {
-    const notification = new Notification({
-      user: userId,
+    await Notification.create({
+      userId,
       message,
     });
-    await notification.save();
   } catch (error) {
     throw error;
   }
 };
 
 // Get all tasks
-router.get("/getAllTasks", async (req, res, next) => {
+router.get("/getAllTasks", authMiddleware, async (req, res, next) => {
   try {
     const tasks = await Task.find()
       .populate({
@@ -98,6 +98,15 @@ const addTaskToAssignedUser = async (assignedTo, taskId) => {
   }
 };
 
+const notifyCollaborators = async (collaborators, taskTitle) => {
+  for (const collaboratorId of collaborators) {
+    await createNotification(
+      collaboratorId,
+      `You are a collaborator on the new task: ${taskTitle}`
+    );
+  }
+};
+
 router.post("/create", fileParser, authMiddleware, async (req, res, next) => {
   try {
     const { title, description, assignedTo, dueDate, priority, status } =
@@ -130,7 +139,7 @@ router.post("/create", fileParser, authMiddleware, async (req, res, next) => {
     // nofication
     await createNotification(
       req?.user?._id,
-      `You have been assigned to task: ${task.title}`
+      `You have been assigned to task: ${task?.title}`
     );
 
     // Save the task in MongoDB
@@ -140,6 +149,7 @@ router.post("/create", fileParser, authMiddleware, async (req, res, next) => {
     await Promise.all([
       updateCollaborators(collaborators, task._id),
       addTaskToAssignedUser(assignedTo, task._id),
+      notifyCollaborators(collaborators, task.title),
     ]);
 
     res.json({ success: true, message: "Task Created Successfully", task });
@@ -147,6 +157,68 @@ router.post("/create", fileParser, authMiddleware, async (req, res, next) => {
     next(error); // Centralized error handling
   }
 });
+
+// router.post("/create", fileParser, authMiddleware, async (req, res, next) => {
+//   try {
+//     const { title, description, assignedTo, dueDate, priority, status } =
+//       req?.body;
+
+//     const collaborators = parseCollaborators(req?.body?.collaborators);
+
+//     const file = req?.file
+//       ? {
+//           data: req?.file?.buffer,
+//           contentType: req?.file?.mimetype,
+//           originalname: req?.file?.originalname,
+//         }
+//       : null;
+
+//     const task = new Task({
+//       title,
+//       description,
+//       assignedTo: assignedTo ? mongoose.Types.ObjectId(assignedTo) : null,
+//       dueDate: dueDate ? new Date(dueDate) : null,
+//       priority,
+//       status,
+//       file,
+//       collaborators,
+//       createdBy: req?.user?._id,
+//     });
+
+//     await task.save();
+
+//     await createNotification(
+//       req?.user?._id,
+//       `You created the task: ${task.title}`
+//     );
+
+//     if (assignedTo) {
+//       notifyTaskCreated(assignedTo, {
+//         taskId: task._id,
+//         message: `You have been assigned to task: ${task.title}`,
+//         createdAt: new Date(),
+//       });
+//     }
+
+//     collaborators.forEach((collaboratorId) => {
+//       notifyTaskCreated(collaboratorId, {
+//         taskId: task._id,
+//         message: `You are a collaborator on the new task: ${task.title}`,
+//         createdAt: new Date(),
+//       });
+//     });
+
+//     await Promise.all([
+//       updateCollaborators(collaborators, task._id),
+//       addTaskToAssignedUser(assignedTo, task._id),
+//       notifyCollaborators(collaborators, task.title),
+//     ]);
+
+//     res.json({ success: true, message: "Task Created Successfully", task });
+//   } catch (error) {
+//     next(error);
+//   }
+// });
 
 router.post("/updateTask/:id", authMiddleware, async (req, res, next) => {
   try {
@@ -171,7 +243,17 @@ router.post("/updateTask/:id", authMiddleware, async (req, res, next) => {
     if (status) task.status = status;
     if (dueDate) task.dueDate = dueDate;
     if (description) task.description = description;
-    if (assignedTo) task.assignedTo = assignedTo;
+    if (assignedTo) {
+      // Check if the assigned user has changed
+      if (task.assignedTo.toString() !== assignedTo) {
+        // Notify the new assigned user
+        await createNotification(
+          assignedTo,
+          `You have been assigned to task: ${task.title}`
+        );
+      }
+      task.assignedTo = assignedTo;
+    }
     if (priority) task.priority = priority;
 
     if (collaborators) {
@@ -179,28 +261,30 @@ router.post("/updateTask/:id", authMiddleware, async (req, res, next) => {
         ...new Set(collaborators.map((collab) => collab?._id)),
       ];
 
-      /**
-       * Filter out collaborators that are not in the provided `collaborators` array
-       * */
+      // Filter out collaborators that are not in the provided `collaborators` array
       task.collaborators = task.collaborators.filter((existingCollaborator) =>
         collaboratorIds.includes(existingCollaborator.toString())
       );
 
-      /**
-       * Add new collaborators (those not already in the task)
-       * */
+      // Add new collaborators (those not already in the task)
       const newCollaborators = collaboratorIds.filter(
         (collabId) => !task?.collaborators.includes(collabId)
       );
 
       task.collaborators.push(...newCollaborators);
+
+      // Notify new collaborators
+      if (newCollaborators.length > 0) {
+        await notifyCollaborators(newCollaborators, task.title);
+      }
     }
 
-    if (comments)
+    if (comments) {
       task.comments.push({
         text: comments,
         createdBy: req.user.id,
       });
+    }
 
     await task.save();
 
@@ -285,7 +369,7 @@ router.get("/getAllDailyTaskUpdate", authMiddleware, async (req, res, next) => {
     next(error);
   }
 });
-router.get("/getAllTasksCount", async (req, res, next) => {
+router.get("/getAllTasksCount", authMiddleware, async (req, res, next) => {
   try {
     const [totalTasks, inCompeleteTask, compeletedTask, pandingTask] =
       await Promise.all([
@@ -294,8 +378,17 @@ router.get("/getAllTasksCount", async (req, res, next) => {
         Task.countDocuments({ status: "completed" }),
         Task.countDocuments({ status: "pending" }),
       ]);
+    const totalNotifications = await Notification.countDocuments({
+      userId: req?.user?.id,
+    });
 
-    res.json({ totalTasks, inCompeleteTask, compeletedTask, pandingTask });
+    res.json({
+      totalTasks,
+      inCompeleteTask,
+      compeletedTask,
+      pandingTask,
+      totalNotifications,
+    });
   } catch (error) {
     next(error);
   }
@@ -424,5 +517,45 @@ router.delete(
     }
   }
 );
+
+// Get Notifications API
+router.get("/getAllNotifications", authMiddleware, async (req, res, next) => {
+  try {
+    const { limit = 10, offset = 0 } = req.query;
+
+    // Build query
+    // const query = { userId };
+    // if (isRead !== undefined) {
+    //   query.seen = seen === "true";
+    // }
+
+    // Fetch notifications with pagination
+    const notifications = await Notification.find({ userId: req.user.id })
+      .populate("userId", "name")
+
+      .sort({ createdAt: -1 })
+      .skip(Number(offset))
+      .limit(Number(limit));
+
+    // Count total notifications
+    const totalNotifications = await Notification.countDocuments({
+      userId: req.user.id,
+    });
+
+    console.log(":sss ", totalNotifications);
+
+    res.json({
+      success: true,
+      data: notifications,
+      pagination: {
+        total: totalNotifications,
+        limit: Number(limit),
+        offset: Number(offset),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 export default router;

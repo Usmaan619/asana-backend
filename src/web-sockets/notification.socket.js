@@ -41,3 +41,17 @@ export const notifyUser = (userId, notificationData) => {
 export const notifyTaskAssigned = (userId, taskData) => {
   io.to(userId).emit("taskAssigned", taskData);
 };
+
+export const createNotification = async (userId, message) => {
+  const notification = await Notification.create({ user: userId, message });
+  io.to(userId).emit("notification", {
+    message: notification.message,
+    createdAt: notification.createdAt,
+  });
+  return notification;
+};
+
+export const notifyTaskCreated = (userId, notificationData) => {
+  // Sends a 'taskCreated' event to the client connected with a specific userId
+  io.to(userId).emit("taskCreated", notificationData);
+};

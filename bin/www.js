@@ -26,7 +26,7 @@ const listen = (port) => {
   /**
    * Initialize Socket.io
    * */
-  initSocket(server);
+  // initSocket(server);
 
   /**
    * Listen on provided port, on all network interfaces.
