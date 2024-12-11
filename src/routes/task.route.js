@@ -323,20 +323,40 @@ router.post(
     try {
       const { ticketNo, about, date, description, tags } = req.body;
 
+      // Check if the ticket exists
       const existingTicket = await Task.findOne({ ticketNo });
-      if (!existingTicket)
-        throw new APIError(404, "404", "Ticket number not found");
+      if (!existingTicket) {
+        throw new APIError(404, "Ticket number not found");
+      }
 
+      // Create a new daily task
       const task = await TaskDaily.create({
         ticketNo,
         about,
         date: date || new Date(),
         description,
         tags,
-        assignedTo: existingTicket?.assignedTo,
-        uId: req?.user?._id,
+        assignedTo: existingTicket.assignedTo,
+        uId: req.user?._id,
       });
-      console.log("task: ", task);
+
+      // Notify the task assignee
+      if (existingTicket.assignedTo) {
+        await createNotification(
+          existingTicket.assignedTo,
+          `Your task has been updated by: ${req.user?.name || "Unknown"}`
+        );
+      }
+
+      // Notify users associated with tags
+      if (Array.isArray(tags) && tags.length > 0) {
+        const notifications = tags.map((tag) =>
+          createNotification(tag, `You are tagged in a task: ${req.user?.name}`)
+        );
+        await Promise.all(notifications);
+      }
+
+      console.log("Task created: ", task);
       res.json({ success: true, message: "Created report successfully" });
     } catch (err) {
       next(err);
@@ -371,15 +391,24 @@ router.get("/getAllDailyTaskUpdate", authMiddleware, async (req, res, next) => {
 });
 router.get("/getAllTasksCount", authMiddleware, async (req, res, next) => {
   try {
-    const [totalTasks, inCompeleteTask, compeletedTask, pandingTask] =
-      await Promise.all([
-        Task.countDocuments({}),
-        Task.countDocuments({ status: "in-progress" }),
-        Task.countDocuments({ status: "completed" }),
-        Task.countDocuments({ status: "pending" }),
-      ]);
+    const [
+      totalTasks,
+      inCompeleteTask,
+      compeletedTask,
+      pandingTask,
+      testingTask,
+      openTask,
+    ] = await Promise.all([
+      Task.countDocuments({}),
+      Task.countDocuments({ status: "in-progress" }),
+      Task.countDocuments({ status: "completed" }),
+      Task.countDocuments({ status: "pending" }),
+      Task.countDocuments({ status: "testing" }),
+      Task.countDocuments({ status: "open" }),
+    ]);
     const totalNotifications = await Notification.countDocuments({
       userId: req?.user?.id,
+      seen: false,
     });
 
     res.json({
@@ -388,6 +417,8 @@ router.get("/getAllTasksCount", authMiddleware, async (req, res, next) => {
       compeletedTask,
       pandingTask,
       totalNotifications,
+      testingTask,
+      openTask,
     });
   } catch (error) {
     next(error);
@@ -396,11 +427,12 @@ router.get("/getAllTasksCount", authMiddleware, async (req, res, next) => {
 
 router.post("/getTaskByStatusAndId", async (req, res, next) => {
   try {
-    const { status, assignedTo, createdAtDate } = req?.body;
+    const { status, assignedTo, createdAtDate, ticketNo } = req?.body;
 
     const query = {};
     if (status) query.status = status;
     if (assignedTo) query.assignedTo = assignedTo;
+    if (ticketNo) query.ticketNo = Number(ticketNo);
     if (createdAtDate) {
       const startOfDay = new Date(createdAtDate);
       const endOfDay = new Date(createdAtDate);
@@ -489,6 +521,28 @@ router.post(
         );
       }
 
+      // Notify the task assignee
+      if (existingTicket.assignedTo) {
+        await createNotification(
+          existingTicket.assignedTo,
+          `Your task has been updated by: ${req.user?.name || "Unknown"} 
+            Ticket Number ${ticketNo}
+            `
+        );
+      }
+
+      // Notify users associated with tags
+      if (Array.isArray(tags) && tags.length > 0) {
+        const notifications = tags.map((tag) =>
+          createNotification(
+            tag,
+            `You are tagged in a task: ${req.user?.name}
+             Ticket Number ${ticketNo}`
+          )
+        );
+        await Promise.all(notifications);
+      }
+
       res.json({
         success: true,
         message: "TaskDaily updated successfully",
@@ -553,6 +607,26 @@ router.get("/getAllNotifications", authMiddleware, async (req, res, next) => {
         offset: Number(offset),
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/updateNotification", async (req, res, next) => {
+  try {
+    // passs a task id
+    const updatedTask = await Notification.findByIdAndUpdate(
+      req?.body?._id,
+
+      {
+        seen: true,
+      },
+      {
+        new: true,
+      }
+    );
+
+    res.json({ success: true, message: "Update notification successfully" });
   } catch (error) {
     next(error);
   }
